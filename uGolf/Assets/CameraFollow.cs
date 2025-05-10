@@ -2,20 +2,33 @@ using UnityEngine;
 
 public class CameraFollow : MonoBehaviour
 {
-    public Transform target; // Assign the golf ball here in the Inspector
-    public Vector3 offset; // Adjust for a better view
+    public Transform ball;
+    public float followSpeed = 5f;
+    public float rotationSpeed = 50f;
+    public float lookAtHeight = 5.3f;
+
+    private Vector3 offset;
+
+    void Start()
+    {
+        offset = transform.position - ball.position;
+    }
 
     void LateUpdate()
     {
-        if (target == null) return;
+        if (Input.GetKey(KeyCode.A))
+        {
+            offset = Quaternion.AngleAxis(-rotationSpeed * Time.deltaTime, Vector3.up) * offset;
+        }
+        else if (Input.GetKey(KeyCode.D))
+        {
+            offset = Quaternion.AngleAxis(rotationSpeed * Time.deltaTime, Vector3.up) * offset;
+        }
 
-        // Set the camera's position directly to the target's position + offset
-        transform.position = target.position + offset;
-        // transform.rotation *= Quaternion.Euler(20, 0, 0);
-        
+        Vector3 desiredPosition = ball.position + offset;
+        transform.position = Vector3.Lerp(transform.position, desiredPosition, followSpeed * Time.deltaTime);
 
-        // Optionally, make the camera look at the ball
-        transform.LookAt(target);
-        transform.rotation *= Quaternion.Euler(-20, 0, 0);
+        Vector3 lookAtTarget = new Vector3(ball.position.x, lookAtHeight, ball.position.z);
+        transform.LookAt(lookAtTarget);
     }
 }

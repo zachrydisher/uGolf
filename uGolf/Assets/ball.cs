@@ -1,48 +1,78 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections;
+using System;
 
-public class ball : MonoBehaviour
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(LineRenderer))]
+public class Ball : MonoBehaviour
 {
+    public float ballRadius = 0.3f;
+    private Rigidbody rb;
+    private LineRenderer lineRenderer;
+    private bool hasWon = false;
+    public Vector3 lastPosition;
+    public int levelNum;
+    public LevelManager levelManager;
 
-    private PhysicsMaterial physMaterial;
-    private Rigidbody rigidBody;
-    private Terrain terrain;
-    public float speed;
-    public float drag;
-    public bool isShooting = false;
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Awake()
+    void Start()
     {
-        rigidBody = GetComponent<Rigidbody>();
+        rb = GetComponent<Rigidbody>();
+        lineRenderer = GetComponent<LineRenderer>();
+        levelNum = SceneManager.GetActiveScene().buildIndex;
     }
 
-    // Update is called once per frame
-    void FixedUpdate()
+    public bool IsBallMoving()
     {
-        ProcessShot();
+        return rb.linearVelocity.magnitude > 0.05f || rb.angularVelocity.magnitude > 0.05f;
     }
 
-    void ProcessShot(){
-        if(Input.GetMouseButtonDown(0)){
-            isShooting = true;
-            Shoot(speed);
+    public void Shoot(Vector3 direction, float force)
+    {
+        rb.AddForce(direction * force);
+        levelManager.PlayGolfHit();
+    }
+
+    public void SetLineGradient(Color lineColor)
+    {
+        Gradient dynamicGradient = new Gradient();
+        dynamicGradient.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(lineColor, 0f),
+                new GradientColorKey(lineColor, 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+            }
+        );
+        lineRenderer.colorGradient = dynamicGradient;
+    }
+
+    public void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Cup") && !hasWon)
+        {
+            hasWon = true;
+            levelManager.WinHole();
         }
     }
 
-    void Shoot(float speed){
-        // rigidBody.AddForce(transform.forward * -speed);
-        float launchAngle = 45f; // Angle in degrees
-        Vector3 shotDirection = Quaternion.Euler(launchAngle, 0, 0) * transform.forward;
-    
-        rigidBody.AddForce(shotDirection * speed, ForceMode.Impulse); // Apply instant force
-
+    public void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Level" + levelNum + "Bounds")){
+            StartCoroutine(ResetAfterDelay());
+        }
     }
 
-    void OnCollisionEnter(Collision collision)
+    public IEnumerator ResetAfterDelay()
     {
-        if(isShooting){
-            rigidBody.linearDamping = 0.6f;
-            rigidBody.angularDamping = 1.5f;
-        }
+        yield return new WaitForSeconds(2f);
+
+        //resets velocity so the reset doesnt have residual force
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        transform.position = lastPosition;
+
     }
 }
